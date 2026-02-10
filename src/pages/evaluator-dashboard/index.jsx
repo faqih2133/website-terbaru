@@ -85,6 +85,52 @@ const BEHAVIOR_INDICATORS = {
   ]
 };
 
+const ASPECT_KEY_ALIASES = {
+  akuntabel_loyal: 'akuntabel',
+  akuntabel_dan_loyal: 'akuntabel',
+  kolaboratif_harmonis: 'kolaboratif',
+  kolaboratif_dan_harmonis: 'kolaboratif'
+};
+
+const normalizeAspectKey = (rawValue) => {
+  return String(rawValue || '')
+    .toLowerCase()
+    .replace(/&/g, ' dan ')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+};
+
+const resolveAspectKey = (aspect) => {
+  const candidates = [aspect?.coreValue, aspect?.name].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const normalized = normalizeAspectKey(candidate);
+    if (!normalized) continue;
+
+    if (BEHAVIOR_INDICATORS[normalized]) {
+      return normalized;
+    }
+
+    if (normalized.startsWith('berorientasi_pelayanan')) {
+      return 'berorientasi_pelayanan';
+    }
+
+    const alias = ASPECT_KEY_ALIASES[normalized];
+    if (alias && BEHAVIOR_INDICATORS[alias]) {
+      return alias;
+    }
+  }
+
+  return null;
+};
+
+const getAspectIndicators = (aspect) => {
+  const resolvedKey = resolveAspectKey(aspect);
+  return resolvedKey ? BEHAVIOR_INDICATORS[resolvedKey] : [];
+};
+
 const EvaluatorDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -1132,8 +1178,8 @@ const EvaluatorDashboard = () => {
                               <h3 className="text-white font-bold text-lg mb-4">6 Aspek Penilaian</h3>
                               <div className="grid grid-cols-2 gap-3">
                                 {aspects1.map((aspect, idx) => {
-                                  const aspectKey = (aspect.coreValue || aspect.name || '').toLowerCase().replace(/\s+/g, '_').replace(/&/g, '_').replace(/_+/g, '_');
-                                  const isExpanded = expandedIndicators[`tool1_aspect_${idx}`];
+                                  const indicators = getAspectIndicators(aspect);
+                                  const isExpanded = expandedIndicators[`tool1_aspect_${idx}`] ?? true;
                                   
                                   return (
                                     <button
@@ -1155,6 +1201,9 @@ const EvaluatorDashboard = () => {
                                       <p className="text-white/80 text-sm font-medium leading-tight capitalize">
                                         {(aspect.name || aspect.coreValue || '').replace(/_/g, ' ')}
                                       </p>
+                                      <p className="text-white/60 text-xs mt-1">
+                                        {indicators.length} indikator perilaku
+                                      </p>
                                       {isExpanded && (
                                         <Icon name="ChevronUp" size={16} className="text-purple-400 mt-2" />
                                       )}
@@ -1167,9 +1216,8 @@ const EvaluatorDashboard = () => {
                             {/* Expanded Indicators */}
                             <div className="space-y-3">
                               {aspects1.map((aspect, idx) => {
-                                const aspectKey = (aspect.coreValue || aspect.name || '').toLowerCase().replace(/\s+/g, '_').replace(/&/g, '_').replace(/_+/g, '_');
-                                const indicators = BEHAVIOR_INDICATORS[aspectKey] || [];
-                                const isExpanded = expandedIndicators[`tool1_aspect_${idx}`];
+                                const indicators = getAspectIndicators(aspect);
+                                const isExpanded = expandedIndicators[`tool1_aspect_${idx}`] ?? true;
 
                                 if (!isExpanded) return null;
 
@@ -1183,7 +1231,7 @@ const EvaluatorDashboard = () => {
                                         <p className="text-purple-200 text-sm mt-1">Skor: {Number(aspect.indeksCapaian || 0).toFixed(2)} / 120</p>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-purple-200 text-xs mb-1">7 Indikator</p>
+                                        <p className="text-purple-200 text-xs mb-1">{indicators.length} Indikator</p>
                                         <p className="text-white font-bold text-2xl">{Number(aspect.indeksCapaian || 0).toFixed(1)}</p>
                                       </div>
                                     </div>
@@ -1199,6 +1247,11 @@ const EvaluatorDashboard = () => {
                                           </div>
                                         ))}
                                       </div>
+                                    )}
+                                    {indicators.length === 0 && (
+                                      <p className="text-sm text-purple-100/80 mt-4 italic">
+                                        Indikator perilaku untuk aspek ini belum tersedia.
+                                      </p>
                                     )}
                                   </div>
                                 );
@@ -1295,8 +1348,8 @@ const EvaluatorDashboard = () => {
                               <h3 className="text-white font-bold text-lg mb-4">6 Aspek Penilaian</h3>
                               <div className="grid grid-cols-2 gap-3">
                                 {aspects2.map((aspect, idx) => {
-                                  const aspectKey = (aspect.coreValue || aspect.name || '').toLowerCase().replace(/\s+/g, '_').replace(/&/g, '_').replace(/_+/g, '_');
-                                  const isExpanded = expandedIndicators[`tool2_aspect_${idx}`];
+                                  const indicators = getAspectIndicators(aspect);
+                                  const isExpanded = expandedIndicators[`tool2_aspect_${idx}`] ?? true;
                                   
                                   return (
                                     <button
@@ -1318,6 +1371,9 @@ const EvaluatorDashboard = () => {
                                       <p className="text-white/80 text-sm font-medium leading-tight capitalize">
                                         {(aspect.name || aspect.coreValue || '').replace(/_/g, ' ')}
                                       </p>
+                                      <p className="text-white/60 text-xs mt-1">
+                                        {indicators.length} indikator perilaku
+                                      </p>
                                       {isExpanded && (
                                         <Icon name="ChevronUp" size={16} className="text-blue-400 mt-2" />
                                       )}
@@ -1330,9 +1386,8 @@ const EvaluatorDashboard = () => {
                             {/* Expanded Indicators */}
                             <div className="space-y-3">
                               {aspects2.map((aspect, idx) => {
-                                const aspectKey = (aspect.coreValue || aspect.name || '').toLowerCase().replace(/\s+/g, '_').replace(/&/g, '_').replace(/_+/g, '_');
-                                const indicators = BEHAVIOR_INDICATORS[aspectKey] || [];
-                                const isExpanded = expandedIndicators[`tool2_aspect_${idx}`];
+                                const indicators = getAspectIndicators(aspect);
+                                const isExpanded = expandedIndicators[`tool2_aspect_${idx}`] ?? true;
 
                                 if (!isExpanded) return null;
 
@@ -1346,7 +1401,7 @@ const EvaluatorDashboard = () => {
                                         <p className="text-blue-200 text-sm mt-1">Skor: {Number(aspect.indeksCapaian || 0).toFixed(2)} / 100</p>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-blue-200 text-xs mb-1">7 Indikator</p>
+                                        <p className="text-blue-200 text-xs mb-1">{indicators.length} Indikator</p>
                                         <p className="text-white font-bold text-2xl">{Number(aspect.indeksCapaian || 0).toFixed(1)}</p>
                                       </div>
                                     </div>
@@ -1362,6 +1417,11 @@ const EvaluatorDashboard = () => {
                                           </div>
                                         ))}
                                       </div>
+                                    )}
+                                    {indicators.length === 0 && (
+                                      <p className="text-sm text-blue-100/80 mt-4 italic">
+                                        Indikator perilaku untuk aspek ini belum tersedia.
+                                      </p>
                                     )}
                                   </div>
                                 );
@@ -1897,6 +1957,7 @@ const EvaluatorDashboard = () => {
                           })
                           .map((aspect, idx) => {
                             const ratingInfo = evaluationService.calculateAspectRating(aspect.indeksCapaian, selectedEvaluationDetail.scale);
+                            const indicators = getAspectIndicators(aspect);
                             return (
                               <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
                                 <div className="flex justify-between items-center">
@@ -1914,6 +1975,23 @@ const EvaluatorDashboard = () => {
                                     Atasan ({Number(aspect.breakdown?.weights?.supervisor || 0)}%) • Peers ({Number(aspect.breakdown?.weights?.peers || aspect.breakdown?.weights?.peer || 0)}%) • Bawahan ({Number(aspect.breakdown?.weights?.subordinates || aspect.breakdown?.weights?.subordinate || 0)}%)
                                   </div>
                                 </div>
+                                {indicators.length > 0 && (
+                                  <div className="mt-3 border-t border-slate-200 pt-3">
+                                    <div className="text-[11px] font-semibold text-slate-600 mb-2">
+                                      {indicators.length} Indikator Perilaku Kunci
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      {indicators.map((indicator, indicatorIdx) => (
+                                        <div key={indicatorIdx} className="text-xs text-slate-600 flex items-start gap-2">
+                                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px] mt-0.5">
+                                            {indicatorIdx + 1}
+                                          </span>
+                                          <span className="leading-relaxed">{indicator}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
