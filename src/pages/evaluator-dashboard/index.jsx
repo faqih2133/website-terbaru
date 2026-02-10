@@ -235,6 +235,72 @@ const getAspectScoreFromDetails = (aspectDetails, acceptedKeys) => {
   return totalScore / matchedScores.length;
 };
 
+const getJobLevel = (position) => {
+  const normalized = String(position || '').toLowerCase();
+  if (normalized === 'admin' || normalized === 'administrator') return 5;
+  if (
+    normalized.includes('direktur') ||
+    normalized.includes('kepala pusat') ||
+    normalized.includes('kepala badan') ||
+    normalized.includes('sekretaris')
+  ) {
+    return 4;
+  }
+  if (
+    normalized.includes('kepala') ||
+    normalized.includes('manajer') ||
+    (normalized.includes('supervisi') && !normalized.includes('tanpa supervisi')) ||
+    normalized.includes('ketua') ||
+    normalized.includes('koordinator')
+  ) {
+    return 3;
+  }
+  if (
+    normalized.includes('fungsional') ||
+    normalized.includes('ahli') ||
+    normalized.includes('penyelia') ||
+    normalized.includes('senior') ||
+    normalized.includes('muda') ||
+    normalized.includes('madya') ||
+    normalized.includes('utama')
+  ) {
+    return 2;
+  }
+  return 1;
+};
+
+const checkIsSupervisoryPosition = (position) => {
+  const normalized = String(position || '').toLowerCase();
+  return (
+    (normalized.includes('supervisi') && !normalized.includes('tanpa supervisi')) ||
+    normalized.includes('kepala') ||
+    normalized.includes('manajer') ||
+    normalized.includes('direktur') ||
+    normalized.includes('ketua') ||
+    normalized.includes('koordinator') ||
+    normalized === 'admin' ||
+    normalized === 'administrator'
+  );
+};
+
+const getRelationshipRole = (evaluatorPosition, evalueePosition) => {
+  const evaluator = String(evaluatorPosition || '').toLowerCase();
+  const evaluee = String(evalueePosition || '').toLowerCase();
+
+  const evaluatorSupervisory = checkIsSupervisoryPosition(evaluator);
+  const evalueeSupervisory = checkIsSupervisoryPosition(evaluee);
+
+  if (evaluatorSupervisory && !evalueeSupervisory) return 'supervisor';
+  if (!evaluatorSupervisory && evalueeSupervisory) return 'subordinate';
+
+  const evaluatorLevel = getJobLevel(evaluator);
+  const evalueeLevel = getJobLevel(evaluee);
+
+  if (evaluatorLevel > evalueeLevel) return 'supervisor';
+  if (evaluatorLevel < evalueeLevel) return 'subordinate';
+  return 'peer';
+};
+
 const EvaluatorDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -273,6 +339,8 @@ const EvaluatorDashboard = () => {
   const [isComparisonMode, setIsComparisonMode] = useState(false);
   const [selectedEmployeeForComparison, setSelectedEmployeeForComparison] = useState(null);
   const [expandedIndicators, setExpandedIndicators] = useState({});
+  const [comparisonInputs, setComparisonInputs] = useState({ 120: {}, 100: {} });
+  const [savingComparisonScale, setSavingComparisonScale] = useState(null);
 
   const handleViewDetail = (evaluation) => {
     setSelectedEvaluationDetail(evaluation);
@@ -877,6 +945,183 @@ const EvaluatorDashboard = () => {
     document.body.removeChild(link);
   }, [myEvaluationsHistory]);
 
+  const getLatestComparisonEvaluation = useCallback((employeeId, scale) => {
+    return myEvaluationsHistory
+      .filter(
+        (evaluation) =>
+          String(evaluation.evaluee_id) === String(employeeId) &&
+          Number(evaluation.scale) === Number(scale)
+      )
+      .sort((a, b) => (b.is_completed ? 1 : -1))
+      .sort((a, b) => new Date(b.updated_at || b.submitted_at) - new Date(a.updated_at || a.submitted_at))[0];
+  }, [myEvaluationsHistory]);
+
+  const getComparisonInputsFromEvaluation = useCallback((employeeId) => {
+    const evalTool1 = getLatestComparisonEvaluation(employeeId, 120);
+    const evalTool2 = getLatestComparisonEvaluation(employeeId, 100);
+    const aspectDetailsTool1 = evalTool1?.npk_calculation?.aspectDetails || [];
+    const aspectDetailsTool2 = evalTool2?.npk_calculation?.aspectDetails || [];
+
+    const scores120 = {};
+    const scores100 = {};
+
+    COMPARISON_ASPECT_DEFINITIONS.forEach((aspectDef) => {
+      const scoreTool1 = getAspectScoreFromDetails(aspectDetailsTool1, aspectDef.tool1Keys);
+      const scoreTool2 = getAspectScoreFromDetails(aspectDetailsTool2, aspectDef.tool2Keys);
+      scores120[aspectDef.id] = scoreTool1 !== null ? Math.round(scoreTool1) : '';
+      scores100[aspectDef.id] = scoreTool2 !== null ? Math.round(scoreTool2) : '';
+    });
+
+    return { 120: scores120, 100: scores100 };
+  }, [getLatestComparisonEvaluation]);
+
+  useEffect(() => {
+    if (!isComparisonMode || !selectedEmployeeForComparison?.id) return;
+    setComparisonInputs(getComparisonInputsFromEvaluation(selectedEmployeeForComparison.id));
+  }, [isComparisonMode, selectedEmployeeForComparison, getComparisonInputsFromEvaluation]);
+
+  const handleComparisonInputChange = useCallback((scale, aspectId, rawValue) => {
+    const maxScale = Number(scale) === 120 ? 120 : 100;
+    const safeValue = String(rawValue ?? '').trim();
+
+    if (safeValue === '') {
+      setComparisonInputs((prev) => ({
+        ...prev,
+        [scale]: {
+          ...prev[scale],
+          [aspectId]: ''
+        }
+      }));
+      return;
+    }
+
+    if (!/^\d+$/.test(safeValue)) return;
+    const numericValue = Math.max(0, Math.min(maxScale, Number(safeValue)));
+
+    setComparisonInputs((prev) => ({
+      ...prev,
+      [scale]: {
+        ...prev[scale],
+        [aspectId]: numericValue
+      }
+    }));
+  }, []);
+
+  const buildAggregatedScoresFromComparisonInputs = useCallback((scale, scoreByAspect) => {
+    const maxScale = Number(scale) === 120 ? 120 : 100;
+    const aggregatedScores = {};
+
+    COMPARISON_ASPECT_DEFINITIONS.forEach((aspectDef) => {
+      const value = Number(scoreByAspect?.[aspectDef.id]);
+      if (!Number.isFinite(value)) return;
+
+      const clampedValue = Math.max(0, Math.min(maxScale, value));
+      const keys = Number(scale) === 120 ? aspectDef.tool1Keys : aspectDef.tool2Keys;
+      keys.forEach((key) => {
+        aggregatedScores[key] = clampedValue;
+      });
+    });
+
+    return aggregatedScores;
+  }, []);
+
+  const submitComparisonScores = useCallback(async (scale) => {
+    if (!selectedEmployeeForComparison?.id) {
+      alert('Data pegawai belum tersedia.');
+      return;
+    }
+
+    const evaluatorId = user?.id || user?.employee_id;
+    if (!evaluatorId) {
+      alert('Identitas evaluator tidak valid.');
+      return;
+    }
+
+    const currentScores = comparisonInputs?.[scale] || {};
+    const missingAspects = COMPARISON_ASPECT_DEFINITIONS.filter((aspectDef) => {
+      const value = Number(currentScores[aspectDef.id]);
+      return !Number.isFinite(value) || value <= 0;
+    });
+
+    if (missingAspects.length > 0) {
+      alert(`Masih ada aspek yang belum diisi untuk Tool ${scale === 120 ? '1' : '2'}. Semua aspek wajib bernilai > 0.`);
+      return;
+    }
+
+    const aggregatedScores = buildAggregatedScoresFromComparisonInputs(scale, currentScores);
+    const evalueeName = selectedEmployeeForComparison.name || selectedEmployeeForComparison.nama || '-';
+    const evalueePosition = selectedEmployeeForComparison.position || selectedEmployeeForComparison.jabatan || '-';
+    const evaluatorName = user?.name || user?.nama || 'Evaluator';
+    const evaluatorPosition = user?.jabatan || user?.position || user?.role || '';
+    const evaluatorRole = getRelationshipRole(evaluatorPosition, evalueePosition);
+    const isSupervisory = checkIsSupervisoryPosition(evalueePosition);
+
+    const assessmentData = {
+      evaluee_id: selectedEmployeeForComparison.id,
+      evaluee_name: evalueeName,
+      evaluee_nip: selectedEmployeeForComparison.nip || '-',
+      evaluee_position: evalueePosition,
+      evaluator_id: evaluatorId,
+      evaluator_name: evaluatorName,
+      evaluation_period: '2026-Semester-I',
+      is_supervisory: isSupervisory,
+      scale,
+      scores: aggregatedScores,
+      comments: {},
+      evaluators: [
+        {
+          id: evaluatorId,
+          name: evaluatorName,
+          role: evaluatorRole,
+          category: evaluatorRole,
+          scores: aggregatedScores
+        }
+      ]
+    };
+
+    try {
+      setSavingComparisonScale(scale);
+
+      await evaluationService.saveBehavioralAssessment(assessmentData);
+      const npkDetails = evaluationService.calculateNPKDetails(assessmentData, scale);
+
+      const backendResponse = await npkAPI.submitBehavioralAssessmentV2({
+        evaluation_period_id: 1,
+        evaluator_id: evaluatorId,
+        evaluee_id: selectedEmployeeForComparison.id,
+        is_supervisory: isSupervisory,
+        scores: aggregatedScores,
+        comments: {},
+        feedback_learning: 'Input dari perbandingan evaluator dashboard',
+        feedback_obstacles: '-',
+        scale,
+        aspect_details: npkDetails?.aspectDetails,
+        weighting_condition: npkDetails?.condition,
+        npk_score: npkDetails?.npkPeriodik
+      });
+
+      if (backendResponse && backendResponse.status === 409) {
+        alert(`Penilaian Tool ${scale === 120 ? '1' : '2'} sudah pernah dikirim.`);
+      } else {
+        alert(`Nilai Tool ${scale === 120 ? '1' : '2'} berhasil dikirim dan masuk ke histori evaluator/admin.`);
+      }
+
+      await loadData(evaluatorId);
+    } catch (error) {
+      const isConflict =
+        (error && error.response && error.response.status === 409) ||
+        String(error?.message || '').includes('sudah');
+      if (isConflict) {
+        alert(`Penilaian Tool ${scale === 120 ? '1' : '2'} sudah pernah dikirim.`);
+      } else {
+        console.error('Gagal menyimpan nilai dari comparison mode:', error);
+        alert(`Gagal menyimpan nilai Tool ${scale === 120 ? '1' : '2'}.`);
+      }
+    } finally {
+      setSavingComparisonScale(null);
+    }
+  }, [selectedEmployeeForComparison, user, comparisonInputs, buildAggregatedScoresFromComparisonInputs, loadData]);
+
 
 
   // Calculate Pending Assessments
@@ -1274,6 +1519,8 @@ const EvaluatorDashboard = () => {
                             const tool1Score = getAspectScoreFromDetails(aspects1, aspectDef.tool1Keys);
                             const tool2Score = getAspectScoreFromDetails(aspects2, aspectDef.tool2Keys);
                             const indicators = getComparisonAspectIndicators(aspectDef.id);
+                            const inputTool1 = comparisonInputs?.[120]?.[aspectDef.id] ?? '';
+                            const inputTool2 = comparisonInputs?.[100]?.[aspectDef.id] ?? '';
                             const expandedKey = `comparison_aspect_${aspectDef.id}`;
                             const isExpanded = expandedIndicators[expandedKey] ?? true;
 
@@ -1326,6 +1573,33 @@ const EvaluatorDashboard = () => {
                                       </div>
                                     </div>
 
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                                      <div className="rounded-lg border border-purple-300/30 bg-purple-500/10 p-3">
+                                        <p className="text-purple-100 text-xs font-semibold mb-2">Input Nilai Tool 1 (0-120)</p>
+                                        <input
+                                          type="text"
+                                          inputMode="numeric"
+                                          pattern="[0-9]*"
+                                          value={inputTool1}
+                                          onChange={(event) => handleComparisonInputChange(120, aspectDef.id, event.target.value)}
+                                          className="w-full px-3 py-2 rounded-md border border-purple-200/40 bg-white/95 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                          placeholder="0 - 120"
+                                        />
+                                      </div>
+                                      <div className="rounded-lg border border-blue-300/30 bg-blue-500/10 p-3">
+                                        <p className="text-blue-100 text-xs font-semibold mb-2">Input Nilai Tool 2 (0-100)</p>
+                                        <input
+                                          type="text"
+                                          inputMode="numeric"
+                                          pattern="[0-9]*"
+                                          value={inputTool2}
+                                          onChange={(event) => handleComparisonInputChange(100, aspectDef.id, event.target.value)}
+                                          className="w-full px-3 py-2 rounded-md border border-blue-200/40 bg-white/95 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                          placeholder="0 - 100"
+                                        />
+                                      </div>
+                                    </div>
+
                                     <div className="mt-4">
                                       <p className="text-white/85 text-xs font-semibold uppercase tracking-wide mb-2">
                                         7 Indikator {aspectDef.label}
@@ -1352,6 +1626,30 @@ const EvaluatorDashboard = () => {
                               </div>
                             );
                           })}
+                        </div>
+
+                        <div className="mt-5 pt-4 border-t border-white/15">
+                          <p className="text-white/70 text-xs mb-3">
+                            Simpan per tool agar nilai masuk ke histori evaluator dan bisa diproses di dashboard admin.
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <Button
+                              variant="primary"
+                              className="w-full"
+                              disabled={savingComparisonScale !== null}
+                              onClick={() => submitComparisonScores(120)}
+                            >
+                              {savingComparisonScale === 120 ? 'Menyimpan Tool 1...' : 'Simpan Nilai Tool 1 (0-120)'}
+                            </Button>
+                            <Button
+                              variant="primary"
+                              className="w-full"
+                              disabled={savingComparisonScale !== null}
+                              onClick={() => submitComparisonScores(100)}
+                            >
+                              {savingComparisonScale === 100 ? 'Menyimpan Tool 2...' : 'Simpan Nilai Tool 2 (0-100)'}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
