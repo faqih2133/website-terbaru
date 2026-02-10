@@ -940,20 +940,27 @@ const BehavioralAssessment = () => {
 
         {/* Assessment Form */}
         <div className="space-y-6 mb-8">
-          {currentAspects.map((aspect, aspectIndex) => (
-            <CoreValueSection
-              key={aspect.id}
-              coreValue={aspect}
-              score={getCurrentScores()[aspect.coreValues[0]]}
-              comment={getCurrentComments()[aspect.coreValues[0]]}
-              onScoreChange={(coreValue, score) => handleScoreChange(aspect.id, coreValue, score)}
-              onCommentChange={(coreValue, comment) => handleCommentChange(aspect.id, coreValue, comment)}
-              isExpanded={expandedSections[aspect.id] || false}
-              onToggle={() => toggleSection(aspect.id)}
-              scale={assessmentScale}
-              index={aspectIndex}
-            />
-          ))}
+          {currentAspects.map((aspect, aspectIndex) => {
+            const primaryScoreKey =
+              aspect?.coreValues?.[0] ||
+              aspect?.title ||
+              aspect?.id;
+
+            return (
+              <CoreValueSection
+                key={aspect.id}
+                coreValue={aspect}
+                score={getCurrentScores()[primaryScoreKey]}
+                comment={getCurrentComments()[primaryScoreKey]}
+                onScoreChange={(coreValue, score) => handleScoreChange(aspect.id, coreValue, score)}
+                onCommentChange={(coreValue, comment) => handleCommentChange(aspect.id, coreValue, comment)}
+                isExpanded={expandedSections[aspect.id] || false}
+                onToggle={() => toggleSection(aspect.id)}
+                scale={assessmentScale}
+                index={aspectIndex}
+              />
+            );
+          })}
         </div>
 
         {/* Action Buttons */}

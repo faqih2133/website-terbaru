@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 
 const BehavioralIndicatorCard = ({
@@ -9,36 +9,70 @@ const BehavioralIndicatorCard = ({
   onCommentChange,
   scale = 100 // Default scale 100
 }) => {
+  const [inputScore, setInputScore] = useState(
+    score !== null && score !== undefined ? String(score) : ''
+  );
+
+  useEffect(() => {
+    setInputScore(score !== null && score !== undefined ? String(score) : '');
+  }, [score]);
+
   // UI sederhana: input angka bulat 0..scale
   const handleScoreChange = (e) => {
-    const inputValue = e.target.value.trim();
+    const inputValue = e.target.value;
+
     if (inputValue === '') {
+      setInputScore('');
       onScoreChange(null);
       return;
     }
 
-    if (!/^\d+$/.test(inputValue)) return;
+    if (!/^\d*$/.test(inputValue)) return;
 
+    setInputScore(inputValue);
     const numericValue = Number(inputValue);
-    if (numericValue >= 0 && numericValue <= scale) {
-      onScoreChange(numericValue);
+
+    if (!Number.isFinite(numericValue)) return;
+
+    if (numericValue > scale) {
+      setInputScore(String(scale));
+      onScoreChange(scale);
+      return;
     }
+
+    if (numericValue >= 0) onScoreChange(numericValue);
+  };
+
+  const handleScoreBlur = () => {
+    if (inputScore === '') return;
+
+    const numericValue = Number(inputScore);
+    if (!Number.isFinite(numericValue)) {
+      setInputScore('');
+      onScoreChange(null);
+      return;
+    }
+
+    const clampedValue = Math.max(0, Math.min(scale, Math.trunc(numericValue)));
+    setInputScore(String(clampedValue));
+    onScoreChange(clampedValue);
   };
 
   return (
     <div className="space-y-4">
       <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
         <label className="block text-sm font-semibold text-slate-700 mb-2">
-          Input Nilai Aspek (1-{scale})
+          Input Nilai Aspek (0-{scale})
         </label>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <input
-            type="number"
-            min="0"
-            max={scale}
-            step="1"
-            value={score !== null && score !== undefined ? score : ''}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={inputScore}
             onChange={handleScoreChange}
+            onBlur={handleScoreBlur}
+            onFocus={(e) => e.target.select()}
             onWheel={(e) => e.target.blur()}
             className="w-32 px-3 py-2 border border-slate-300 rounded-md text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
             placeholder="0"

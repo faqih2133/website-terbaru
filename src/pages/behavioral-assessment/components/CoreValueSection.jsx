@@ -15,6 +15,11 @@ const CoreValueSection = ({
 }) => {
   const isCompleted = score !== undefined && score !== null && score !== '';
   const indicators = (coreValue.coreValues || []).slice(0, 7);
+  const primaryScoreKey =
+    indicators[0] ||
+    coreValue?.coreValues?.[0] ||
+    coreValue?.title ||
+    coreValue?.id;
   // const completionPercentage = isCompleted ? 100 : 0; // Dihapus karena tidak digunakan
 
   // Color schemes based on index
@@ -148,8 +153,8 @@ const CoreValueSection = ({
                 coreValueId={coreValue.id}
                 score={score}
                 comment={comment}
-                onScoreChange={(val) => onScoreChange(indicators[0], val)}
-                onCommentChange={(val) => onCommentChange(indicators[0], val)}
+                onScoreChange={(val) => onScoreChange(primaryScoreKey, val)}
+                onCommentChange={(val) => onCommentChange(primaryScoreKey, val)}
                 scale={scale}
               />
             </div>
