@@ -85,6 +85,222 @@ const BEHAVIOR_INDICATORS = {
   ]
 };
 
+const ASPECT_KEY_ALIASES = {
+  akuntabel_loyal: 'akuntabel',
+  akuntabel_dan_loyal: 'akuntabel',
+  kolaboratif_harmonis: 'kolaboratif',
+  kolaboratif_dan_harmonis: 'kolaboratif'
+};
+
+const normalizeAspectKey = (rawValue) => {
+  return String(rawValue || '')
+    .toLowerCase()
+    .replace(/&/g, ' dan ')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+};
+
+const resolveAspectKey = (aspect) => {
+  const candidates = [aspect?.coreValue, aspect?.name].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const normalized = normalizeAspectKey(candidate);
+    if (!normalized) continue;
+
+    if (BEHAVIOR_INDICATORS[normalized]) {
+      return normalized;
+    }
+
+    if (normalized.startsWith('berorientasi_pelayanan')) {
+      return 'berorientasi_pelayanan';
+    }
+
+    const alias = ASPECT_KEY_ALIASES[normalized];
+    if (alias && BEHAVIOR_INDICATORS[alias]) {
+      return alias;
+    }
+  }
+
+  return null;
+};
+
+const getAspectIndicators = (aspect) => {
+  const resolvedKey = resolveAspectKey(aspect);
+  return resolvedKey ? BEHAVIOR_INDICATORS[resolvedKey] : [];
+};
+
+const COMPARISON_ASPECT_DEFINITIONS = [
+  {
+    id: 'berorientasi_pelayanan',
+    label: 'Berorientasi Pelayanan',
+    tool1Keys: ['berorientasi_pelayanan'],
+    tool2Keys: ['berorientasi_pelayanan']
+  },
+  {
+    id: 'akuntabel_loyal',
+    label: 'Akuntabel & Loyal',
+    tool1Keys: ['akuntabel_loyal', 'akuntabel', 'loyal'],
+    tool2Keys: ['akuntabel_loyal', 'akuntabel', 'loyal']
+  },
+  {
+    id: 'kompeten',
+    label: 'Kompeten',
+    tool1Keys: ['kompeten'],
+    tool2Keys: ['kompeten']
+  },
+  {
+    id: 'harmonis_kolaboratif',
+    label: 'Harmonis & Kolaboratif',
+    tool1Keys: ['kolaboratif_harmonis', 'harmonis', 'kolaboratif'],
+    tool2Keys: ['kolaboratif_harmonis', 'harmonis', 'kolaboratif']
+  },
+  {
+    id: 'adaptif',
+    label: 'Adaptif',
+    tool1Keys: ['adaptif'],
+    tool2Keys: ['adaptif']
+  },
+  {
+    id: 'kepemimpinan',
+    label: 'Kepemimpinan',
+    tool1Keys: ['kepemimpinan'],
+    tool2Keys: ['kepemimpinan']
+  }
+];
+
+const mergeUniqueIndicators = (...indicatorGroups) => {
+  const seen = new Set();
+  const merged = [];
+
+  indicatorGroups.flat().forEach((indicator) => {
+    if (!indicator || seen.has(indicator)) return;
+    seen.add(indicator);
+    merged.push(indicator);
+  });
+
+  return merged;
+};
+
+const getComparisonAspectIndicators = (comparisonAspectId) => {
+  if (comparisonAspectId === 'akuntabel_loyal') {
+    return mergeUniqueIndicators(BEHAVIOR_INDICATORS.akuntabel, BEHAVIOR_INDICATORS.loyal).slice(0, 7);
+  }
+
+  if (comparisonAspectId === 'harmonis_kolaboratif') {
+    return mergeUniqueIndicators(BEHAVIOR_INDICATORS.harmonis, BEHAVIOR_INDICATORS.kolaboratif).slice(0, 7);
+  }
+
+  return (BEHAVIOR_INDICATORS[comparisonAspectId] || []).slice(0, 7);
+};
+
+const getAspectScoreFromDetails = (aspectDetails, acceptedKeys) => {
+  if (!Array.isArray(aspectDetails) || !Array.isArray(acceptedKeys) || acceptedKeys.length === 0) {
+    return null;
+  }
+
+  const normalizedAccepted = new Set(
+    acceptedKeys.map((key) => normalizeAspectKey(key)).filter(Boolean)
+  );
+  const matchedScores = [];
+
+  aspectDetails.forEach((aspect) => {
+    const candidateKeys = [aspect?.coreValue, aspect?.name]
+      .map((value) => normalizeAspectKey(value))
+      .filter(Boolean);
+
+    const isMatched = candidateKeys.some((candidate) => {
+      if (candidate.startsWith('berorientasi_pelayanan') && normalizedAccepted.has('berorientasi_pelayanan')) {
+        return true;
+      }
+
+      if (normalizedAccepted.has(candidate)) {
+        return true;
+      }
+
+      const alias = ASPECT_KEY_ALIASES[candidate];
+      return alias ? normalizedAccepted.has(alias) : false;
+    });
+
+    if (!isMatched) return;
+
+    const score = Number(aspect?.indeksCapaian);
+    if (!Number.isFinite(score)) return;
+    matchedScores.push(score);
+  });
+
+  if (matchedScores.length === 0) return null;
+  const totalScore = matchedScores.reduce((sum, score) => sum + score, 0);
+  return totalScore / matchedScores.length;
+};
+
+const getJobLevel = (position) => {
+  const normalized = String(position || '').toLowerCase();
+  if (normalized === 'admin' || normalized === 'administrator') return 5;
+  if (
+    normalized.includes('direktur') ||
+    normalized.includes('kepala pusat') ||
+    normalized.includes('kepala badan') ||
+    normalized.includes('sekretaris')
+  ) {
+    return 4;
+  }
+  if (
+    normalized.includes('kepala') ||
+    normalized.includes('manajer') ||
+    (normalized.includes('supervisi') && !normalized.includes('tanpa supervisi')) ||
+    normalized.includes('ketua') ||
+    normalized.includes('koordinator')
+  ) {
+    return 3;
+  }
+  if (
+    normalized.includes('fungsional') ||
+    normalized.includes('ahli') ||
+    normalized.includes('penyelia') ||
+    normalized.includes('senior') ||
+    normalized.includes('muda') ||
+    normalized.includes('madya') ||
+    normalized.includes('utama')
+  ) {
+    return 2;
+  }
+  return 1;
+};
+
+const checkIsSupervisoryPosition = (position) => {
+  const normalized = String(position || '').toLowerCase();
+  return (
+    (normalized.includes('supervisi') && !normalized.includes('tanpa supervisi')) ||
+    normalized.includes('kepala') ||
+    normalized.includes('manajer') ||
+    normalized.includes('direktur') ||
+    normalized.includes('ketua') ||
+    normalized.includes('koordinator') ||
+    normalized === 'admin' ||
+    normalized === 'administrator'
+  );
+};
+
+const getRelationshipRole = (evaluatorPosition, evalueePosition) => {
+  const evaluator = String(evaluatorPosition || '').toLowerCase();
+  const evaluee = String(evalueePosition || '').toLowerCase();
+
+  const evaluatorSupervisory = checkIsSupervisoryPosition(evaluator);
+  const evalueeSupervisory = checkIsSupervisoryPosition(evaluee);
+
+  if (evaluatorSupervisory && !evalueeSupervisory) return 'supervisor';
+  if (!evaluatorSupervisory && evalueeSupervisory) return 'subordinate';
+
+  const evaluatorLevel = getJobLevel(evaluator);
+  const evalueeLevel = getJobLevel(evaluee);
+
+  if (evaluatorLevel > evalueeLevel) return 'supervisor';
+  if (evaluatorLevel < evalueeLevel) return 'subordinate';
+  return 'peer';
+};
+
 const EvaluatorDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -123,6 +339,8 @@ const EvaluatorDashboard = () => {
   const [isComparisonMode, setIsComparisonMode] = useState(false);
   const [selectedEmployeeForComparison, setSelectedEmployeeForComparison] = useState(null);
   const [expandedIndicators, setExpandedIndicators] = useState({});
+  const [comparisonInputs, setComparisonInputs] = useState({ 120: {}, 100: {} });
+  const [savingComparisonScale, setSavingComparisonScale] = useState(null);
 
   const handleViewDetail = (evaluation) => {
     setSelectedEvaluationDetail(evaluation);
@@ -727,6 +945,183 @@ const EvaluatorDashboard = () => {
     document.body.removeChild(link);
   }, [myEvaluationsHistory]);
 
+  const getLatestComparisonEvaluation = useCallback((employeeId, scale) => {
+    return myEvaluationsHistory
+      .filter(
+        (evaluation) =>
+          String(evaluation.evaluee_id) === String(employeeId) &&
+          Number(evaluation.scale) === Number(scale)
+      )
+      .sort((a, b) => (b.is_completed ? 1 : -1))
+      .sort((a, b) => new Date(b.updated_at || b.submitted_at) - new Date(a.updated_at || a.submitted_at))[0];
+  }, [myEvaluationsHistory]);
+
+  const getComparisonInputsFromEvaluation = useCallback((employeeId) => {
+    const evalTool1 = getLatestComparisonEvaluation(employeeId, 120);
+    const evalTool2 = getLatestComparisonEvaluation(employeeId, 100);
+    const aspectDetailsTool1 = evalTool1?.npk_calculation?.aspectDetails || [];
+    const aspectDetailsTool2 = evalTool2?.npk_calculation?.aspectDetails || [];
+
+    const scores120 = {};
+    const scores100 = {};
+
+    COMPARISON_ASPECT_DEFINITIONS.forEach((aspectDef) => {
+      const scoreTool1 = getAspectScoreFromDetails(aspectDetailsTool1, aspectDef.tool1Keys);
+      const scoreTool2 = getAspectScoreFromDetails(aspectDetailsTool2, aspectDef.tool2Keys);
+      scores120[aspectDef.id] = scoreTool1 !== null ? Math.round(scoreTool1) : '';
+      scores100[aspectDef.id] = scoreTool2 !== null ? Math.round(scoreTool2) : '';
+    });
+
+    return { 120: scores120, 100: scores100 };
+  }, [getLatestComparisonEvaluation]);
+
+  useEffect(() => {
+    if (!isComparisonMode || !selectedEmployeeForComparison?.id) return;
+    setComparisonInputs(getComparisonInputsFromEvaluation(selectedEmployeeForComparison.id));
+  }, [isComparisonMode, selectedEmployeeForComparison, getComparisonInputsFromEvaluation]);
+
+  const handleComparisonInputChange = useCallback((scale, aspectId, rawValue) => {
+    const maxScale = Number(scale) === 120 ? 120 : 100;
+    const safeValue = String(rawValue ?? '').trim();
+
+    if (safeValue === '') {
+      setComparisonInputs((prev) => ({
+        ...prev,
+        [scale]: {
+          ...prev[scale],
+          [aspectId]: ''
+        }
+      }));
+      return;
+    }
+
+    if (!/^\d+$/.test(safeValue)) return;
+    const numericValue = Math.max(0, Math.min(maxScale, Number(safeValue)));
+
+    setComparisonInputs((prev) => ({
+      ...prev,
+      [scale]: {
+        ...prev[scale],
+        [aspectId]: numericValue
+      }
+    }));
+  }, []);
+
+  const buildAggregatedScoresFromComparisonInputs = useCallback((scale, scoreByAspect) => {
+    const maxScale = Number(scale) === 120 ? 120 : 100;
+    const aggregatedScores = {};
+
+    COMPARISON_ASPECT_DEFINITIONS.forEach((aspectDef) => {
+      const value = Number(scoreByAspect?.[aspectDef.id]);
+      if (!Number.isFinite(value)) return;
+
+      const clampedValue = Math.max(0, Math.min(maxScale, value));
+      const keys = Number(scale) === 120 ? aspectDef.tool1Keys : aspectDef.tool2Keys;
+      keys.forEach((key) => {
+        aggregatedScores[key] = clampedValue;
+      });
+    });
+
+    return aggregatedScores;
+  }, []);
+
+  const submitComparisonScores = useCallback(async (scale) => {
+    if (!selectedEmployeeForComparison?.id) {
+      alert('Data pegawai belum tersedia.');
+      return;
+    }
+
+    const evaluatorId = user?.id || user?.employee_id;
+    if (!evaluatorId) {
+      alert('Identitas evaluator tidak valid.');
+      return;
+    }
+
+    const currentScores = comparisonInputs?.[scale] || {};
+    const missingAspects = COMPARISON_ASPECT_DEFINITIONS.filter((aspectDef) => {
+      const value = Number(currentScores[aspectDef.id]);
+      return !Number.isFinite(value) || value <= 0;
+    });
+
+    if (missingAspects.length > 0) {
+      alert(`Masih ada aspek yang belum diisi untuk Tool ${scale === 120 ? '1' : '2'}. Semua aspek wajib bernilai > 0.`);
+      return;
+    }
+
+    const aggregatedScores = buildAggregatedScoresFromComparisonInputs(scale, currentScores);
+    const evalueeName = selectedEmployeeForComparison.name || selectedEmployeeForComparison.nama || '-';
+    const evalueePosition = selectedEmployeeForComparison.position || selectedEmployeeForComparison.jabatan || '-';
+    const evaluatorName = user?.name || user?.nama || 'Evaluator';
+    const evaluatorPosition = user?.jabatan || user?.position || user?.role || '';
+    const evaluatorRole = getRelationshipRole(evaluatorPosition, evalueePosition);
+    const isSupervisory = checkIsSupervisoryPosition(evalueePosition);
+
+    const assessmentData = {
+      evaluee_id: selectedEmployeeForComparison.id,
+      evaluee_name: evalueeName,
+      evaluee_nip: selectedEmployeeForComparison.nip || '-',
+      evaluee_position: evalueePosition,
+      evaluator_id: evaluatorId,
+      evaluator_name: evaluatorName,
+      evaluation_period: '2026-Semester-I',
+      is_supervisory: isSupervisory,
+      scale,
+      scores: aggregatedScores,
+      comments: {},
+      evaluators: [
+        {
+          id: evaluatorId,
+          name: evaluatorName,
+          role: evaluatorRole,
+          category: evaluatorRole,
+          scores: aggregatedScores
+        }
+      ]
+    };
+
+    try {
+      setSavingComparisonScale(scale);
+
+      await evaluationService.saveBehavioralAssessment(assessmentData);
+      const npkDetails = evaluationService.calculateNPKDetails(assessmentData, scale);
+
+      const backendResponse = await npkAPI.submitBehavioralAssessmentV2({
+        evaluation_period_id: 1,
+        evaluator_id: evaluatorId,
+        evaluee_id: selectedEmployeeForComparison.id,
+        is_supervisory: isSupervisory,
+        scores: aggregatedScores,
+        comments: {},
+        feedback_learning: 'Input dari perbandingan evaluator dashboard',
+        feedback_obstacles: '-',
+        scale,
+        aspect_details: npkDetails?.aspectDetails,
+        weighting_condition: npkDetails?.condition,
+        npk_score: npkDetails?.npkPeriodik
+      });
+
+      if (backendResponse && backendResponse.status === 409) {
+        alert(`Penilaian Tool ${scale === 120 ? '1' : '2'} sudah pernah dikirim.`);
+      } else {
+        alert(`Nilai Tool ${scale === 120 ? '1' : '2'} berhasil dikirim dan masuk ke histori evaluator/admin.`);
+      }
+
+      await loadData(evaluatorId);
+    } catch (error) {
+      const isConflict =
+        (error && error.response && error.response.status === 409) ||
+        String(error?.message || '').includes('sudah');
+      if (isConflict) {
+        alert(`Penilaian Tool ${scale === 120 ? '1' : '2'} sudah pernah dikirim.`);
+      } else {
+        console.error('Gagal menyimpan nilai dari comparison mode:', error);
+        alert(`Gagal menyimpan nilai Tool ${scale === 120 ? '1' : '2'}.`);
+      }
+    } finally {
+      setSavingComparisonScale(null);
+    }
+  }, [selectedEmployeeForComparison, user, comparisonInputs, buildAggregatedScoresFromComparisonInputs, loadData]);
+
 
 
   // Calculate Pending Assessments
@@ -795,7 +1190,6 @@ const EvaluatorDashboard = () => {
   }
 
   return (
-    <>
       <div className="min-h-screen bg-slate-50 pb-20">
         
         {/* Sticky Header */}
@@ -1056,8 +1450,215 @@ const EvaluatorDashboard = () => {
               </div>
 
               <div className="max-w-7xl mx-auto px-6 py-8">
+                {(() => {
+                  const evalTool1 = myEvaluationsHistory
+                    .filter(e => String(e.evaluee_id) === String(selectedEmployeeForComparison.id) && Number(e.scale) === 120)
+                    .sort((a, b) => (b.is_completed ? 1 : -1))
+                    .sort((a, b) => new Date(b.updated_at || b.submitted_at) - new Date(a.updated_at || a.submitted_at))[0];
+
+                  const evalTool2 = myEvaluationsHistory
+                    .filter(e => String(e.evaluee_id) === String(selectedEmployeeForComparison.id) && Number(e.scale) === 100)
+                    .sort((a, b) => (b.is_completed ? 1 : -1))
+                    .sort((a, b) => new Date(b.updated_at || b.submitted_at) - new Date(a.updated_at || a.submitted_at))[0];
+
+                  const calc1 = evalTool1?.npk_calculation;
+                  const calc2 = evalTool2?.npk_calculation;
+                  const periodik1 = calc1?.npkPeriodik ?? evalTool1?.nilai_nkp ?? 0;
+                  const periodik2 = calc2?.npkPeriodik ?? evalTool2?.nilai_nkp ?? 0;
+                  const aspects1 = calc1?.aspectDetails || [];
+                  const aspects2 = calc2?.aspectDetails || [];
+
+                  return (
+                    <div className="space-y-6 mb-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl border border-purple-400/30 p-6 text-white">
+                          <div className="flex items-end justify-between mb-2">
+                            <div>
+                              <p className="text-purple-200 text-sm font-semibold">Tool 1 - NPK Periodik</p>
+                              <div className="text-4xl font-bold mt-1">{evalTool1 ? Number(periodik1).toFixed(1) : '-'}</div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-purple-200 text-sm">Skala</p>
+                              <p className="text-2xl font-bold">/ 120</p>
+                            </div>
+                          </div>
+                          <p className="text-purple-100 text-sm">
+                            {evalTool1 ? (evalTool1.is_completed ? 'Penilaian Selesai' : 'Penilaian Belum Selesai') : 'Belum ada penilaian'}
+                          </p>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl border border-blue-400/30 p-6 text-white">
+                          <div className="flex items-end justify-between mb-2">
+                            <div>
+                              <p className="text-blue-200 text-sm font-semibold">Tool 2 - NPK Periodik</p>
+                              <div className="text-4xl font-bold mt-1">{evalTool2 ? Number(periodik2).toFixed(1) : '-'}</div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-blue-200 text-sm">Skala</p>
+                              <p className="text-2xl font-bold">/ 100</p>
+                            </div>
+                          </div>
+                          <p className="text-blue-100 text-sm">
+                            {evalTool2 ? (evalTool2.is_completed ? 'Penilaian Selesai' : 'Penilaian Belum Selesai') : 'Belum ada penilaian'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6">
+                        <h3 className="text-white font-bold text-lg mb-1">
+                          Perbandingan Berpasangan Aspek 1-6
+                        </h3>
+                        <p className="text-white/70 text-sm">
+                          Aspek 1 Tool 1 dibandingkan langsung dengan Aspek 1 Tool 2, lalu berlanjut sampai Aspek 6.
+                          Aspek gabungan: Akuntabel & Loyal, Harmonis & Kolaboratif.
+                        </p>
+
+                        <div className="space-y-3 mt-4">
+                          {COMPARISON_ASPECT_DEFINITIONS.map((aspectDef, idx) => {
+                            const aspectNumber = idx + 1;
+                            const tool1Score = getAspectScoreFromDetails(aspects1, aspectDef.tool1Keys);
+                            const tool2Score = getAspectScoreFromDetails(aspects2, aspectDef.tool2Keys);
+                            const indicators = getComparisonAspectIndicators(aspectDef.id);
+                            const inputTool1 = comparisonInputs?.[120]?.[aspectDef.id] ?? '';
+                            const inputTool2 = comparisonInputs?.[100]?.[aspectDef.id] ?? '';
+                            const expandedKey = `comparison_aspect_${aspectDef.id}`;
+                            const isExpanded = expandedIndicators[expandedKey] ?? true;
+
+                            return (
+                              <div key={aspectDef.id} className="rounded-xl border border-white/15 bg-slate-900/20 overflow-hidden">
+                                <button
+                                  onClick={() => setExpandedIndicators(prev => ({
+                                    ...prev,
+                                    [expandedKey]: !prev[expandedKey]
+                                  }))}
+                                  className="w-full px-4 py-3 text-left hover:bg-white/5 transition-colors"
+                                >
+                                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                                    <div className="flex items-start gap-3">
+                                      <div className="w-9 h-9 rounded-lg bg-slate-700/70 border border-white/20 text-white font-bold flex items-center justify-center">
+                                        {aspectNumber}
+                                      </div>
+                                      <div>
+                                        <p className="text-white font-semibold">Aspek {aspectNumber}: {aspectDef.label}</p>
+                                        <p className="text-white/60 text-xs">{indicators.length} indikator perilaku</p>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <span className="px-2.5 py-1 rounded-md bg-purple-500/20 border border-purple-300/30 text-purple-100 font-semibold">
+                                        Tool 1: {tool1Score !== null ? Number(tool1Score).toFixed(1) : '-'}
+                                      </span>
+                                      <span className="px-2.5 py-1 rounded-md bg-blue-500/20 border border-blue-300/30 text-blue-100 font-semibold">
+                                        Tool 2: {tool2Score !== null ? Number(tool2Score).toFixed(1) : '-'}
+                                      </span>
+                                      <Icon name={isExpanded ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-white/70" />
+                                    </div>
+                                  </div>
+                                </button>
+
+                                <div className="px-4 py-3 border-t border-white/10 bg-slate-900/10">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="rounded-lg border border-purple-300/30 bg-purple-500/10 p-3">
+                                      <p className="text-purple-100 text-xs font-semibold mb-2">Input Nilai Tool 1 (0-120)</p>
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={inputTool1}
+                                        onChange={(event) => handleComparisonInputChange(120, aspectDef.id, event.target.value)}
+                                        className="w-full px-3 py-2 rounded-md border border-purple-200/40 bg-white/95 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                        placeholder="0 - 120"
+                                      />
+                                    </div>
+                                    <div className="rounded-lg border border-blue-300/30 bg-blue-500/10 p-3">
+                                      <p className="text-blue-100 text-xs font-semibold mb-2">Input Nilai Tool 2 (0-100)</p>
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={inputTool2}
+                                        onChange={(event) => handleComparisonInputChange(100, aspectDef.id, event.target.value)}
+                                        className="w-full px-3 py-2 rounded-md border border-blue-200/40 bg-white/95 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                        placeholder="0 - 100"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {isExpanded && (
+                                  <div className="px-4 pb-4 border-t border-white/10">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                                      <div className="rounded-lg border border-purple-300/30 bg-purple-500/10 p-3">
+                                        <p className="text-purple-100 text-xs font-semibold mb-1">Tool 1 (Skala 120)</p>
+                                        <p className="text-white text-lg font-bold">
+                                          {tool1Score !== null ? Number(tool1Score).toFixed(2) : 'Belum ada nilai'}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-blue-300/30 bg-blue-500/10 p-3">
+                                        <p className="text-blue-100 text-xs font-semibold mb-1">Tool 2 (Skala 100)</p>
+                                        <p className="text-white text-lg font-bold">
+                                          {tool2Score !== null ? Number(tool2Score).toFixed(2) : 'Belum ada nilai'}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-4">
+                                      <p className="text-white/85 text-xs font-semibold uppercase tracking-wide mb-2">
+                                        7 Indikator {aspectDef.label}
+                                      </p>
+                                      {indicators.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                          {indicators.map((indicator, indicatorIdx) => (
+                                            <div key={indicatorIdx} className="bg-white/10 rounded-lg p-2.5 flex gap-2">
+                                              <span className="w-5 h-5 rounded-full bg-white/20 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                                {indicatorIdx + 1}
+                                              </span>
+                                              <span className="text-sm text-white/90 leading-relaxed">{indicator}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm text-white/60 italic">
+                                          Indikator perilaku untuk aspek ini belum tersedia.
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="mt-5 pt-4 border-t border-white/15">
+                          <p className="text-white/70 text-xs mb-3">
+                            Simpan per tool agar nilai masuk ke histori evaluator dan bisa diproses di dashboard admin.
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <Button
+                              variant="primary"
+                              className="w-full"
+                              disabled={savingComparisonScale !== null}
+                              onClick={() => submitComparisonScores(120)}
+                            >
+                              {savingComparisonScale === 120 ? 'Menyimpan Tool 1...' : 'Simpan Nilai Tool 1 (0-120)'}
+                            </Button>
+                            <Button
+                              variant="primary"
+                              className="w-full"
+                              disabled={savingComparisonScale !== null}
+                              onClick={() => submitComparisonScores(100)}
+                            >
+                              {savingComparisonScale === 100 ? 'Menyimpan Tool 2...' : 'Simpan Nilai Tool 2 (0-100)'}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
                 {/* Side-by-Side Tool Comparison - Grid Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {false && (<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Tool 1 Section */}
                 <div className="space-y-6">
                   {(() => {
@@ -1133,8 +1734,8 @@ const EvaluatorDashboard = () => {
                               <h3 className="text-white font-bold text-lg mb-4">6 Aspek Penilaian</h3>
                               <div className="grid grid-cols-2 gap-3">
                                 {aspects1.map((aspect, idx) => {
-                                  const aspectKey = (aspect.coreValue || aspect.name || '').toLowerCase().replace(/\s+/g, '_').replace(/&/g, '_').replace(/_+/g, '_');
-                                  const isExpanded = expandedIndicators[`tool1_aspect_${idx}`];
+                                  const indicators = getAspectIndicators(aspect);
+                                  const isExpanded = expandedIndicators[`tool1_aspect_${idx}`] ?? true;
                                   
                                   return (
                                     <button
@@ -1156,6 +1757,9 @@ const EvaluatorDashboard = () => {
                                       <p className="text-white/80 text-sm font-medium leading-tight capitalize">
                                         {(aspect.name || aspect.coreValue || '').replace(/_/g, ' ')}
                                       </p>
+                                      <p className="text-white/60 text-xs mt-1">
+                                        {indicators.length} indikator perilaku
+                                      </p>
                                       {isExpanded && (
                                         <Icon name="ChevronUp" size={16} className="text-purple-400 mt-2" />
                                       )}
@@ -1168,9 +1772,8 @@ const EvaluatorDashboard = () => {
                             {/* Expanded Indicators */}
                             <div className="space-y-3">
                               {aspects1.map((aspect, idx) => {
-                                const aspectKey = (aspect.coreValue || aspect.name || '').toLowerCase().replace(/\s+/g, '_').replace(/&/g, '_').replace(/_+/g, '_');
-                                const indicators = BEHAVIOR_INDICATORS[aspectKey] || [];
-                                const isExpanded = expandedIndicators[`tool1_aspect_${idx}`];
+                                const indicators = getAspectIndicators(aspect);
+                                const isExpanded = expandedIndicators[`tool1_aspect_${idx}`] ?? true;
 
                                 if (!isExpanded) return null;
 
@@ -1184,7 +1787,7 @@ const EvaluatorDashboard = () => {
                                         <p className="text-purple-200 text-sm mt-1">Skor: {Number(aspect.indeksCapaian || 0).toFixed(2)} / 120</p>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-purple-200 text-xs mb-1">7 Indikator</p>
+                                        <p className="text-purple-200 text-xs mb-1">{indicators.length} Indikator</p>
                                         <p className="text-white font-bold text-2xl">{Number(aspect.indeksCapaian || 0).toFixed(1)}</p>
                                       </div>
                                     </div>
@@ -1200,6 +1803,11 @@ const EvaluatorDashboard = () => {
                                           </div>
                                         ))}
                                       </div>
+                                    )}
+                                    {indicators.length === 0 && (
+                                      <p className="text-sm text-purple-100/80 mt-4 italic">
+                                        Indikator perilaku untuk aspek ini belum tersedia.
+                                      </p>
                                     )}
                                   </div>
                                 );
@@ -1296,8 +1904,8 @@ const EvaluatorDashboard = () => {
                               <h3 className="text-white font-bold text-lg mb-4">6 Aspek Penilaian</h3>
                               <div className="grid grid-cols-2 gap-3">
                                 {aspects2.map((aspect, idx) => {
-                                  const aspectKey = (aspect.coreValue || aspect.name || '').toLowerCase().replace(/\s+/g, '_').replace(/&/g, '_').replace(/_+/g, '_');
-                                  const isExpanded = expandedIndicators[`tool2_aspect_${idx}`];
+                                  const indicators = getAspectIndicators(aspect);
+                                  const isExpanded = expandedIndicators[`tool2_aspect_${idx}`] ?? true;
                                   
                                   return (
                                     <button
@@ -1319,6 +1927,9 @@ const EvaluatorDashboard = () => {
                                       <p className="text-white/80 text-sm font-medium leading-tight capitalize">
                                         {(aspect.name || aspect.coreValue || '').replace(/_/g, ' ')}
                                       </p>
+                                      <p className="text-white/60 text-xs mt-1">
+                                        {indicators.length} indikator perilaku
+                                      </p>
                                       {isExpanded && (
                                         <Icon name="ChevronUp" size={16} className="text-blue-400 mt-2" />
                                       )}
@@ -1331,9 +1942,8 @@ const EvaluatorDashboard = () => {
                             {/* Expanded Indicators */}
                             <div className="space-y-3">
                               {aspects2.map((aspect, idx) => {
-                                const aspectKey = (aspect.coreValue || aspect.name || '').toLowerCase().replace(/\s+/g, '_').replace(/&/g, '_').replace(/_+/g, '_');
-                                const indicators = BEHAVIOR_INDICATORS[aspectKey] || [];
-                                const isExpanded = expandedIndicators[`tool2_aspect_${idx}`];
+                                const indicators = getAspectIndicators(aspect);
+                                const isExpanded = expandedIndicators[`tool2_aspect_${idx}`] ?? true;
 
                                 if (!isExpanded) return null;
 
@@ -1347,7 +1957,7 @@ const EvaluatorDashboard = () => {
                                         <p className="text-blue-200 text-sm mt-1">Skor: {Number(aspect.indeksCapaian || 0).toFixed(2)} / 100</p>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-blue-200 text-xs mb-1">7 Indikator</p>
+                                        <p className="text-blue-200 text-xs mb-1">{indicators.length} Indikator</p>
                                         <p className="text-white font-bold text-2xl">{Number(aspect.indeksCapaian || 0).toFixed(1)}</p>
                                       </div>
                                     </div>
@@ -1363,6 +1973,11 @@ const EvaluatorDashboard = () => {
                                           </div>
                                         ))}
                                       </div>
+                                    )}
+                                    {indicators.length === 0 && (
+                                      <p className="text-sm text-blue-100/80 mt-4 italic">
+                                        Indikator perilaku untuk aspek ini belum tersedia.
+                                      </p>
                                     )}
                                   </div>
                                 );
@@ -1383,7 +1998,8 @@ const EvaluatorDashboard = () => {
                     );
                   })()}
                 </div>
-              </div>
+              </div>)}
+            </div>
             </div>
           )}
 
@@ -1640,6 +2256,7 @@ const EvaluatorDashboard = () => {
             </div>
           )}
         </div>
+      </div>
       <ConfirmationModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
@@ -1896,6 +2513,7 @@ const EvaluatorDashboard = () => {
                           })
                           .map((aspect, idx) => {
                             const ratingInfo = evaluationService.calculateAspectRating(aspect.indeksCapaian, selectedEvaluationDetail.scale);
+                            const indicators = getAspectIndicators(aspect);
                             return (
                               <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
                                 <div className="flex justify-between items-center">
@@ -1913,6 +2531,23 @@ const EvaluatorDashboard = () => {
                                     Atasan ({Number(aspect.breakdown?.weights?.supervisor || 0)}%) • Peers ({Number(aspect.breakdown?.weights?.peers || aspect.breakdown?.weights?.peer || 0)}%) • Bawahan ({Number(aspect.breakdown?.weights?.subordinates || aspect.breakdown?.weights?.subordinate || 0)}%)
                                   </div>
                                 </div>
+                                {indicators.length > 0 && (
+                                  <div className="mt-3 border-t border-slate-200 pt-3">
+                                    <div className="text-[11px] font-semibold text-slate-600 mb-2">
+                                      {indicators.length} Indikator Perilaku Kunci
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      {indicators.map((indicator, indicatorIdx) => (
+                                        <div key={indicatorIdx} className="text-xs text-slate-600 flex items-start gap-2">
+                                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px] mt-0.5">
+                                            {indicatorIdx + 1}
+                                          </span>
+                                          <span className="leading-relaxed">{indicator}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -2067,7 +2702,7 @@ const EvaluatorDashboard = () => {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

@@ -14,6 +14,12 @@ const CoreValueSection = ({
   index 
 }) => {
   const isCompleted = score !== undefined && score !== null && score !== '';
+  const indicators = (coreValue.coreValues || []).slice(0, 7);
+  const primaryScoreKey =
+    indicators[0] ||
+    coreValue?.coreValues?.[0] ||
+    coreValue?.title ||
+    coreValue?.id;
   // const completionPercentage = isCompleted ? 100 : 0; // Dihapus karena tidak digunakan
 
   // Color schemes based on index
@@ -66,7 +72,7 @@ const CoreValueSection = ({
               <div className="flex items-center space-x-4 mt-3">
                 <div className="flex items-center space-x-1 text-xs text-slate-500">
                   <Icon name="Target" size={12} color="currentColor" />
-                  <span>{coreValue.coreValues?.length || 0} Core Values</span>
+                  <span>{indicators.length} Indikator</span>
                 </div>
                 {scale && (
                   <div className="flex items-center space-x-1 text-xs text-slate-500">
@@ -119,11 +125,11 @@ const CoreValueSection = ({
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-2">
                 <Icon name="List" size={14} />
-                Indikator Perilaku Kunci
+                7 Indikator Perilaku Kunci
               </h4>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {coreValue.coreValues?.map((indicator, idx) => (
+                {indicators.map((indicator, idx) => (
                   <div key={idx} className="flex items-start space-x-3 p-3 bg-white rounded-lg border border-slate-200 shadow-sm hover:border-blue-300 transition-colors">
                     <div className="w-5 h-5 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 border border-blue-100">
                       <span className="text-xs font-bold">{idx + 1}</span>
@@ -134,17 +140,21 @@ const CoreValueSection = ({
                   <p className="text-sm text-slate-500 italic">Tidak ada core values yang tersedia</p>
                 )}
               </div>
+              {indicators.length > 0 && indicators.length < 7 && (
+                <p className="text-xs text-amber-600 mt-2">
+                  Catatan: indikator yang tersedia saat ini {indicators.length} dari 7.
+                </p>
+              )}
             </div>
 
             {/* Behavioral Assessment Card */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 relative overflow-hidden">
-              <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${colorScheme.bg}`}></div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
               <BehavioralIndicatorCard
                 coreValueId={coreValue.id}
                 score={score}
                 comment={comment}
-                onScoreChange={(val) => onScoreChange(coreValue.coreValues[0], val)}
-                onCommentChange={(val) => onCommentChange(coreValue.coreValues[0], val)}
+                onScoreChange={(val) => onScoreChange(primaryScoreKey, val)}
+                onCommentChange={(val) => onCommentChange(primaryScoreKey, val)}
                 scale={scale}
               />
             </div>
