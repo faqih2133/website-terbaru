@@ -1,0 +1,265 @@
+// Mock data untuk development - ganti dengan API calls yang sebenarnya
+export const mockUsers = [
+    {
+      id: 1839,
+      employee_id: '1839',
+      nip: '198203152010012001',
+      name: 'Saifullah Noer',
+      position: 'Analis Keuangan Negara Ahli Madya',
+      department: 'Direktorat Jenderal Anggaran',
+      role: 'evaluator',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'noer.saifullah@kemenkeu.go.id',
+      birth_date: '1982-03-15'
+    },
+    {
+      id: 1592,
+      employee_id: '1592',
+      nip: '197811082005022002',
+      name: 'Poejowati Probo Wardani',
+      position: 'Penilai Ahli Muda',
+      department: 'Direktorat Jenderal Pajak',
+      role: 'evaluee',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'wardani.poejowati@kemenkeu.go.id',
+      birth_date: '1978-11-08'
+    },
+    {
+      id: 1770,
+      employee_id: '1770',
+      nip: '199004202015051001',
+      name: 'Rizky Dharmawan',
+      position: 'Pengawas Keuangan Negara Ahli Pertama',
+      department: 'Sekretariat Jenderal',
+      role: 'admin',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'dharmawan.rizky@kemenkeu.go.id',
+      birth_date: '1990-04-20'
+    },
+    {
+      id: 910,
+      employee_id: '910',
+      nip: '199506112021072002',
+      name: 'Hanna Amalia Azzahra',
+      position: 'Analis Keuangan Negara Ahli Pertama',
+      department: 'Badan Pendidikan dan Pelatihan Keuangan',
+      role: 'evaluator',
+      position_type: 'functional',
+      status: 'Tidak Aktif',
+      email: 'azzahra.hanna@kemenkeu.go.id',
+      birth_date: '1995-06-11'
+    },
+    {
+      id: 250,
+      employee_id: '250',
+      nip: '198712252008022002',
+      name: 'Anindita Nur Rachmi',
+      position: 'Penilai Ahli Madya',
+      department: 'Direktorat Jenderal Perbendaharaan',
+      role: 'evaluee',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'rachmi.anindita@kemenkeu.go.id',
+      birth_date: '1987-12-25'
+    },
+    {
+      id: 2057,
+      employee_id: '2057',
+      nip: '198905102012011001',
+      name: 'Taufiq Istianto',
+      position: 'Analis Keuangan Negara Ahli Muda',
+      department: 'Inspektorat Jenderal',
+      role: 'evaluator',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'istianto.taufiq@kemenkeu.go.id',
+      birth_date: '1989-05-10'
+    },
+    {
+      id: 210,
+      employee_id: '210',
+      nip: '199203082019062002',
+      name: 'Andhita Vidya Putri',
+      position: 'Pengawas Keuangan Negara Ahli Madya',
+      department: 'Direktorat Jenderal Kekayaan Negara',
+      role: 'admin',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'putri.andhita@kemenkeu.go.id',
+      birth_date: '1992-03-08'
+    },
+    {
+      id: 752,
+      employee_id: '752',
+      nip: '197605152003031001',
+      name: 'Faisal',
+      position: 'Penilai Ahli Pertama',
+      department: 'Direktorat Jenderal Strategi Ekonomi dan Fiskal',
+      role: 'evaluator',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'faisal@kemenkeu.go.id',
+      birth_date: '1976-05-15'
+    },
+    {
+      id: 732,
+      employee_id: '732',
+      nip: '199107202016041001',
+      name: 'Evan Widyatama',
+      position: 'Analis Keuangan Negara Ahli Madya',
+      department: 'Direktorat Jenderal Bea dan Cukai',
+      role: 'evaluee',
+      position_type: 'functional',
+      status: 'Tidak Aktif',
+      email: 'widyatama.evan@kemenkeu.go.id',
+      birth_date: '1991-07-20'
+    },
+    {
+      id: 1734,
+      employee_id: '1734',
+      nip: '198410112009022002',
+      name: 'Rina Ariyati',
+      position: 'Pengawas Keuangan Negara Ahli Pertama',
+      department: 'Badan Teknologi, Informasi, dan Intelijen Keuangan',
+      role: 'evaluator',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'ariyati.rina@kemenkeu.go.id',
+      birth_date: '1984-10-11'
+    },
+    {
+      id: 2002,
+      employee_id: '2002',
+      nip: '196812051991031001',
+      name: 'Supriadi',
+      position: 'Penilai Ahli Madya',
+      department: 'Direktorat Jenderal Perimbangan Keuangan',
+      role: 'admin',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'supriadi@kemenkeu.go.id',
+      birth_date: '1968-12-05'
+    },
+    {
+      id: 1428,
+      employee_id: '1428',
+      nip: '199008152017051001',
+      name: 'Muhammad Romi Kurniawan',
+      position: 'Analis Keuangan Negara Ahli Pertama',
+      department: 'Sekretariat Jenderal',
+      role: 'evaluator',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'kurniawan.romi@kemenkeu.go.id',
+      birth_date: '1990-08-15'
+    },
+    {
+      id: 1469,
+      employee_id: '1469',
+      nip: '199401102022082002',
+      name: 'Nancy Grace Pasaribu',
+      position: 'Pengawas Keuangan Negara Ahli Muda',
+      department: 'Direktorat Jenderal Pengelolaan Pembiayaan dan Risiko',
+      role: 'evaluee',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'pasaribu.nancy@kemenkeu.go.id',
+      birth_date: '1994-01-10'
+    },
+    {
+      id: 1313,
+      employee_id: '1313',
+      nip: '198306202008011001',
+      name: 'Mirsal',
+      position: 'Penilai Ahli Pertama',
+      department: 'Lainnya',
+      role: 'evaluator',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'mirsal@kemenkeu.go.id',
+      birth_date: '1983-06-20'
+    },
+    {
+      id: 823,
+      employee_id: '823',
+      nip: '199512052021031002',
+      name: 'Fitrah Maula',
+      position: 'Analis Keuangan Negara Ahli Muda',
+      department: 'Direktorat Jenderal Stabilitas dan Pengembangan Sektor Keuangan',
+      role: 'admin',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'maula.fitrah@kemenkeu.go.id',
+      birth_date: '1995-12-05'
+    },
+    {
+      id: 1069,
+      employee_id: '1069',
+      nip: '197902152004041001',
+      name: 'Ishak Ismail',
+      position: 'Pengawas Keuangan Negara Ahli Madya',
+      department: 'Inspektorat Jenderal',
+      role: 'evaluator',
+      position_type: 'functional',
+      status: 'Tidak Aktif',
+      email: 'ismail.ishak@kemenkeu.go.id',
+      birth_date: '1979-02-15'
+    },
+    {
+      id: 74,
+      employee_id: '74',
+      nip: '198711082011022001',
+      name: 'Aedy Syam',
+      position: 'Penilai Ahli Madya',
+      department: 'Direktorat Jenderal Anggaran',
+      role: 'evaluee',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'syam.aedy@kemenkeu.go.id',
+      birth_date: '1987-11-08'
+    },
+    {
+      id: 594,
+      employee_id: '594',
+      nip: '199309202018061001',
+      name: 'Dimas Surya Putra',
+      position: 'Analis Keuangan Negara Ahli Pertama',
+      department: 'Direktorat Jenderal Pajak',
+      role: 'evaluator',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'putra.dimas@kemenkeu.go.id',
+      birth_date: '1993-09-20'
+    },
+    {
+      id: 546,
+      employee_id: '546',
+      nip: '198805112013072002',
+      name: 'Dewi Lestari',
+      position: 'Pengawas Keuangan Negara Ahli Pertama',
+      department: 'Badan Pendidikan dan Pelatihan Keuangan',
+      role: 'admin',
+      position_type: 'functional',
+      status: 'Aktif',
+      email: 'lestari.dewi@kemenkeu.go.id',
+      birth_date: '1988-05-11'
+    }
+  ];
+  
+  export const mockEvaluationPeriods = [
+    {
+      id: 1,
+      period_name: 'Evaluasi Kinerja 2026',
+      start_date: '2026-01-01',
+      end_date: '2026-12-31',
+      status: 'active'
+    }
+  ];
+  
+  export default {
+    mockUsers,
+    mockEvaluationPeriods
+  };

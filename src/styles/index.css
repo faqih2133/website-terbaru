@@ -1,0 +1,98 @@
+/* FORCE OVERRIDE untuk memastikan styling bekerja */
+:root {
+  --color-primary: #1E3A8A !important;
+  --color-accent: #D97706 !important;
+  --color-background: #FAFBFC !important;
+  --color-foreground: #1F2937 !important;
+  --color-card: #FFFFFF !important;
+  --color-muted: #F3F4F6 !important;
+  --color-success: #059669 !important;
+  --color-warning: #D97706 !important;
+  --color-error: #DC2626 !important;
+}
+
+/* ===========================================
+   LOGIN PAGE - RESPONSIVE VERTICAL SCROLL
+   =========================================== */
+.login-page {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  height: 100vh !important;
+}
+
+/* Ensure smooth scrolling */
+.login-page {
+  scroll-behavior: smooth;
+}
+
+/* Flexbox layout for proper content distribution */
+.login-page .flex {
+  display: flex;
+}
+
+.login-page .flex-1 {
+  flex: 1 1 0%;
+}
+
+.login-page .flex-shrink-0 {
+  flex-shrink: 0;
+}
+
+/* Responsive spacing */
+@media (max-width: 640px) {
+  .login-page .space-y-6 > * + * {
+    margin-top: 1.5rem;
+  }
+  
+  .login-page .space-y-8 > * + * {
+    margin-top: 2rem;
+  }
+}
+
+/* ===========================================
+   MODERN STYLING
+   =========================================== */
+
+/* Modern button styles */
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+input:focus {
+  outline: none;
+  ring: 2px solid #3B82F6;
+  border-color: #3B82F6;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #1E3A8A 0%, #D97706 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -12px rgba(30, 58, 138, 0.25);
+}
+
+/* Loading spinner */
+.spinner {
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #3B82F6;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
