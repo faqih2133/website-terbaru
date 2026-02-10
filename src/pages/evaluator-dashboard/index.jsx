@@ -131,6 +131,110 @@ const getAspectIndicators = (aspect) => {
   return resolvedKey ? BEHAVIOR_INDICATORS[resolvedKey] : [];
 };
 
+const COMPARISON_ASPECT_DEFINITIONS = [
+  {
+    id: 'berorientasi_pelayanan',
+    label: 'Berorientasi Pelayanan',
+    tool1Keys: ['berorientasi_pelayanan'],
+    tool2Keys: ['berorientasi_pelayanan']
+  },
+  {
+    id: 'akuntabel_loyal',
+    label: 'Akuntabel & Loyal',
+    tool1Keys: ['akuntabel_loyal', 'akuntabel', 'loyal'],
+    tool2Keys: ['akuntabel_loyal', 'akuntabel', 'loyal']
+  },
+  {
+    id: 'kompeten',
+    label: 'Kompeten',
+    tool1Keys: ['kompeten'],
+    tool2Keys: ['kompeten']
+  },
+  {
+    id: 'harmonis_kolaboratif',
+    label: 'Harmonis & Kolaboratif',
+    tool1Keys: ['kolaboratif_harmonis', 'harmonis', 'kolaboratif'],
+    tool2Keys: ['kolaboratif_harmonis', 'harmonis', 'kolaboratif']
+  },
+  {
+    id: 'adaptif',
+    label: 'Adaptif',
+    tool1Keys: ['adaptif'],
+    tool2Keys: ['adaptif']
+  },
+  {
+    id: 'kepemimpinan',
+    label: 'Kepemimpinan',
+    tool1Keys: ['kepemimpinan'],
+    tool2Keys: ['kepemimpinan']
+  }
+];
+
+const mergeUniqueIndicators = (...indicatorGroups) => {
+  const seen = new Set();
+  const merged = [];
+
+  indicatorGroups.flat().forEach((indicator) => {
+    if (!indicator || seen.has(indicator)) return;
+    seen.add(indicator);
+    merged.push(indicator);
+  });
+
+  return merged;
+};
+
+const getComparisonAspectIndicators = (comparisonAspectId) => {
+  if (comparisonAspectId === 'akuntabel_loyal') {
+    return mergeUniqueIndicators(BEHAVIOR_INDICATORS.akuntabel, BEHAVIOR_INDICATORS.loyal).slice(0, 7);
+  }
+
+  if (comparisonAspectId === 'harmonis_kolaboratif') {
+    return mergeUniqueIndicators(BEHAVIOR_INDICATORS.harmonis, BEHAVIOR_INDICATORS.kolaboratif).slice(0, 7);
+  }
+
+  return (BEHAVIOR_INDICATORS[comparisonAspectId] || []).slice(0, 7);
+};
+
+const getAspectScoreFromDetails = (aspectDetails, acceptedKeys) => {
+  if (!Array.isArray(aspectDetails) || !Array.isArray(acceptedKeys) || acceptedKeys.length === 0) {
+    return null;
+  }
+
+  const normalizedAccepted = new Set(
+    acceptedKeys.map((key) => normalizeAspectKey(key)).filter(Boolean)
+  );
+  const matchedScores = [];
+
+  aspectDetails.forEach((aspect) => {
+    const candidateKeys = [aspect?.coreValue, aspect?.name]
+      .map((value) => normalizeAspectKey(value))
+      .filter(Boolean);
+
+    const isMatched = candidateKeys.some((candidate) => {
+      if (candidate.startsWith('berorientasi_pelayanan') && normalizedAccepted.has('berorientasi_pelayanan')) {
+        return true;
+      }
+
+      if (normalizedAccepted.has(candidate)) {
+        return true;
+      }
+
+      const alias = ASPECT_KEY_ALIASES[candidate];
+      return alias ? normalizedAccepted.has(alias) : false;
+    });
+
+    if (!isMatched) return;
+
+    const score = Number(aspect?.indeksCapaian);
+    if (!Number.isFinite(score)) return;
+    matchedScores.push(score);
+  });
+
+  if (matchedScores.length === 0) return null;
+  const totalScore = matchedScores.reduce((sum, score) => sum + score, 0);
+  return totalScore / matchedScores.length;
+};
+
 const EvaluatorDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -1101,8 +1205,160 @@ const EvaluatorDashboard = () => {
               </div>
 
               <div className="max-w-7xl mx-auto px-6 py-8">
+                {(() => {
+                  const evalTool1 = myEvaluationsHistory
+                    .filter(e => String(e.evaluee_id) === String(selectedEmployeeForComparison.id) && Number(e.scale) === 120)
+                    .sort((a, b) => (b.is_completed ? 1 : -1))
+                    .sort((a, b) => new Date(b.updated_at || b.submitted_at) - new Date(a.updated_at || a.submitted_at))[0];
+
+                  const evalTool2 = myEvaluationsHistory
+                    .filter(e => String(e.evaluee_id) === String(selectedEmployeeForComparison.id) && Number(e.scale) === 100)
+                    .sort((a, b) => (b.is_completed ? 1 : -1))
+                    .sort((a, b) => new Date(b.updated_at || b.submitted_at) - new Date(a.updated_at || a.submitted_at))[0];
+
+                  const calc1 = evalTool1?.npk_calculation;
+                  const calc2 = evalTool2?.npk_calculation;
+                  const periodik1 = calc1?.npkPeriodik ?? evalTool1?.nilai_nkp ?? 0;
+                  const periodik2 = calc2?.npkPeriodik ?? evalTool2?.nilai_nkp ?? 0;
+                  const aspects1 = calc1?.aspectDetails || [];
+                  const aspects2 = calc2?.aspectDetails || [];
+
+                  return (
+                    <div className="space-y-6 mb-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl border border-purple-400/30 p-6 text-white">
+                          <div className="flex items-end justify-between mb-2">
+                            <div>
+                              <p className="text-purple-200 text-sm font-semibold">Tool 1 - NPK Periodik</p>
+                              <div className="text-4xl font-bold mt-1">{evalTool1 ? Number(periodik1).toFixed(1) : '-'}</div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-purple-200 text-sm">Skala</p>
+                              <p className="text-2xl font-bold">/ 120</p>
+                            </div>
+                          </div>
+                          <p className="text-purple-100 text-sm">
+                            {evalTool1 ? (evalTool1.is_completed ? 'Penilaian Selesai' : 'Penilaian Belum Selesai') : 'Belum ada penilaian'}
+                          </p>
+                        </div>
+
+                        <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl border border-blue-400/30 p-6 text-white">
+                          <div className="flex items-end justify-between mb-2">
+                            <div>
+                              <p className="text-blue-200 text-sm font-semibold">Tool 2 - NPK Periodik</p>
+                              <div className="text-4xl font-bold mt-1">{evalTool2 ? Number(periodik2).toFixed(1) : '-'}</div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-blue-200 text-sm">Skala</p>
+                              <p className="text-2xl font-bold">/ 100</p>
+                            </div>
+                          </div>
+                          <p className="text-blue-100 text-sm">
+                            {evalTool2 ? (evalTool2.is_completed ? 'Penilaian Selesai' : 'Penilaian Belum Selesai') : 'Belum ada penilaian'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 p-6">
+                        <h3 className="text-white font-bold text-lg mb-1">
+                          Perbandingan Berpasangan Aspek 1-6
+                        </h3>
+                        <p className="text-white/70 text-sm">
+                          Aspek 1 Tool 1 dibandingkan langsung dengan Aspek 1 Tool 2, lalu berlanjut sampai Aspek 6.
+                          Aspek gabungan: Akuntabel & Loyal, Harmonis & Kolaboratif.
+                        </p>
+
+                        <div className="space-y-3 mt-4">
+                          {COMPARISON_ASPECT_DEFINITIONS.map((aspectDef, idx) => {
+                            const aspectNumber = idx + 1;
+                            const tool1Score = getAspectScoreFromDetails(aspects1, aspectDef.tool1Keys);
+                            const tool2Score = getAspectScoreFromDetails(aspects2, aspectDef.tool2Keys);
+                            const indicators = getComparisonAspectIndicators(aspectDef.id);
+                            const expandedKey = `comparison_aspect_${aspectDef.id}`;
+                            const isExpanded = expandedIndicators[expandedKey] ?? true;
+
+                            return (
+                              <div key={aspectDef.id} className="rounded-xl border border-white/15 bg-slate-900/20 overflow-hidden">
+                                <button
+                                  onClick={() => setExpandedIndicators(prev => ({
+                                    ...prev,
+                                    [expandedKey]: !prev[expandedKey]
+                                  }))}
+                                  className="w-full px-4 py-3 text-left hover:bg-white/5 transition-colors"
+                                >
+                                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                                    <div className="flex items-start gap-3">
+                                      <div className="w-9 h-9 rounded-lg bg-slate-700/70 border border-white/20 text-white font-bold flex items-center justify-center">
+                                        {aspectNumber}
+                                      </div>
+                                      <div>
+                                        <p className="text-white font-semibold">Aspek {aspectNumber}: {aspectDef.label}</p>
+                                        <p className="text-white/60 text-xs">{indicators.length} indikator perilaku</p>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-xs">
+                                      <span className="px-2.5 py-1 rounded-md bg-purple-500/20 border border-purple-300/30 text-purple-100 font-semibold">
+                                        Tool 1: {tool1Score !== null ? Number(tool1Score).toFixed(1) : '-'}
+                                      </span>
+                                      <span className="px-2.5 py-1 rounded-md bg-blue-500/20 border border-blue-300/30 text-blue-100 font-semibold">
+                                        Tool 2: {tool2Score !== null ? Number(tool2Score).toFixed(1) : '-'}
+                                      </span>
+                                      <Icon name={isExpanded ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-white/70" />
+                                    </div>
+                                  </div>
+                                </button>
+
+                                {isExpanded && (
+                                  <div className="px-4 pb-4 border-t border-white/10">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                                      <div className="rounded-lg border border-purple-300/30 bg-purple-500/10 p-3">
+                                        <p className="text-purple-100 text-xs font-semibold mb-1">Tool 1 (Skala 120)</p>
+                                        <p className="text-white text-lg font-bold">
+                                          {tool1Score !== null ? Number(tool1Score).toFixed(2) : 'Belum ada nilai'}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-blue-300/30 bg-blue-500/10 p-3">
+                                        <p className="text-blue-100 text-xs font-semibold mb-1">Tool 2 (Skala 100)</p>
+                                        <p className="text-white text-lg font-bold">
+                                          {tool2Score !== null ? Number(tool2Score).toFixed(2) : 'Belum ada nilai'}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-4">
+                                      <p className="text-white/85 text-xs font-semibold uppercase tracking-wide mb-2">
+                                        7 Indikator {aspectDef.label}
+                                      </p>
+                                      {indicators.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                          {indicators.map((indicator, indicatorIdx) => (
+                                            <div key={indicatorIdx} className="bg-white/10 rounded-lg p-2.5 flex gap-2">
+                                              <span className="w-5 h-5 rounded-full bg-white/20 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                                {indicatorIdx + 1}
+                                              </span>
+                                              <span className="text-sm text-white/90 leading-relaxed">{indicator}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="text-sm text-white/60 italic">
+                                          Indikator perilaku untuk aspek ini belum tersedia.
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
                 {/* Side-by-Side Tool Comparison - Grid Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {false && (<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Tool 1 Section */}
                 <div className="space-y-6">
                   {(() => {
@@ -1442,7 +1698,7 @@ const EvaluatorDashboard = () => {
                     );
                   })()}
                 </div>
-              </div>
+              </div>)}
             </div>
             </div>
           )}
