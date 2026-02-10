@@ -795,7 +795,6 @@ const EvaluatorDashboard = () => {
   }
 
   return (
-    <>
       <div className="min-h-screen bg-slate-50 pb-20">
         
         {/* Sticky Header */}
@@ -1385,6 +1384,7 @@ const EvaluatorDashboard = () => {
                 </div>
               </div>
             </div>
+            </div>
           )}
 
           {activeTab === 'my-history' && (
@@ -1640,6 +1640,7 @@ const EvaluatorDashboard = () => {
             </div>
           )}
         </div>
+      </div>
       <ConfirmationModal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
@@ -2067,7 +2068,7 @@ const EvaluatorDashboard = () => {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 
