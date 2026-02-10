@@ -1556,6 +1556,35 @@ const EvaluatorDashboard = () => {
                                   </div>
                                 </button>
 
+                                <div className="px-4 py-3 border-t border-white/10 bg-slate-900/10">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="rounded-lg border border-purple-300/30 bg-purple-500/10 p-3">
+                                      <p className="text-purple-100 text-xs font-semibold mb-2">Input Nilai Tool 1 (0-120)</p>
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={inputTool1}
+                                        onChange={(event) => handleComparisonInputChange(120, aspectDef.id, event.target.value)}
+                                        className="w-full px-3 py-2 rounded-md border border-purple-200/40 bg-white/95 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                        placeholder="0 - 120"
+                                      />
+                                    </div>
+                                    <div className="rounded-lg border border-blue-300/30 bg-blue-500/10 p-3">
+                                      <p className="text-blue-100 text-xs font-semibold mb-2">Input Nilai Tool 2 (0-100)</p>
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={inputTool2}
+                                        onChange={(event) => handleComparisonInputChange(100, aspectDef.id, event.target.value)}
+                                        className="w-full px-3 py-2 rounded-md border border-blue-200/40 bg-white/95 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300"
+                                        placeholder="0 - 100"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
                                 {isExpanded && (
                                   <div className="px-4 pb-4 border-t border-white/10">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
@@ -1570,33 +1599,6 @@ const EvaluatorDashboard = () => {
                                         <p className="text-white text-lg font-bold">
                                           {tool2Score !== null ? Number(tool2Score).toFixed(2) : 'Belum ada nilai'}
                                         </p>
-                                      </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                                      <div className="rounded-lg border border-purple-300/30 bg-purple-500/10 p-3">
-                                        <p className="text-purple-100 text-xs font-semibold mb-2">Input Nilai Tool 1 (0-120)</p>
-                                        <input
-                                          type="text"
-                                          inputMode="numeric"
-                                          pattern="[0-9]*"
-                                          value={inputTool1}
-                                          onChange={(event) => handleComparisonInputChange(120, aspectDef.id, event.target.value)}
-                                          className="w-full px-3 py-2 rounded-md border border-purple-200/40 bg-white/95 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-purple-300"
-                                          placeholder="0 - 120"
-                                        />
-                                      </div>
-                                      <div className="rounded-lg border border-blue-300/30 bg-blue-500/10 p-3">
-                                        <p className="text-blue-100 text-xs font-semibold mb-2">Input Nilai Tool 2 (0-100)</p>
-                                        <input
-                                          type="text"
-                                          inputMode="numeric"
-                                          pattern="[0-9]*"
-                                          value={inputTool2}
-                                          onChange={(event) => handleComparisonInputChange(100, aspectDef.id, event.target.value)}
-                                          className="w-full px-3 py-2 rounded-md border border-blue-200/40 bg-white/95 text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300"
-                                          placeholder="0 - 100"
-                                        />
                                       </div>
                                     </div>
 
